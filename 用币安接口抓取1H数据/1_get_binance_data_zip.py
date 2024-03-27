@@ -114,13 +114,14 @@ def download_url(url, directory, proxies):
     while retries < max_retries:
         filename = url.split('/')[-1]
         file_path = os.path.join(directory, filename)
+
         try:
             response = requests.get(url, proxies=proxies, stream=True)
             response.raise_for_status()
             with open(file_path, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
-            return 0
+            return retries
         except requests.RequestException as e:
             if "Not Found for url" in str(e):  # 检查错误信息是否包含 "Not Found for url"
                 # print(f"{filename.split('.zip')[0]},此时期无K线数据")
@@ -128,8 +129,6 @@ def download_url(url, directory, proxies):
 
             else:
                 retries += 1
-                # print(f"下载 {url} 失败，重试第{retries}次...")
-    # 如果所有尝试都失败，返回False
     return retries
 
 
@@ -137,16 +136,21 @@ def download_url(url, directory, proxies):
 def main_download(urls, directory, proxies):
     error_urls = []
     success_urls = []
+    retryed_urls =[]
     with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
         future_to_url = {executor.submit(download_url, url, directory, proxies): url for url in urls}
         for future in concurrent.futures.as_completed(future_to_url):
             url = future_to_url[future]
+            filename = url.split('/')[-1]
             result = future.result()
-            if result > 0:
-                error_urls.append(f'{url},下载失败次数: {result}')
-            if result == 0:
+            if result == 10:
+                error_urls.append(f'！！！{filename}最终下载失败！！！,重试{result}次,{url}')
+            elif result > 0:
+                retryed_urls.append(f'{filename}下载成功,重试次数：{result}')
                 success_urls.append(url)
-    return error_urls, success_urls
+            elif result == 0:
+                success_urls.append(url)
+    return error_urls, retryed_urls,success_urls
 
 
 def verify_checksum(zip_file_path, checksum_file_path):
@@ -203,6 +207,7 @@ if __name__ == '__main__':
     # 设置增量zip文件下载目录
     download_directory = 下载文件夹
     failed_symbols_log = os.path.join(main_path, f'Download_failed_{target}_symbols.txt')
+    retryed_symbols_log = os.path.join(main_path, f'Download_retryed_{target}_symbols.txt')
     Verify_times_log = os.path.join(main_path, f'Verify_checksum_times_{target}_symbols.txt')
     # 为每个币种生成URL
 
@@ -306,12 +311,20 @@ if __name__ == '__main__':
         checksum_urls.sort()
 
         # 下载失败的url列表
-        failed_symbol_urls, success_symbol_urls = main_download(urls, download_directory, proxies)
+        failed_symbols,retryed_symbols, success_symbol_urls = main_download(urls, download_directory, proxies)
         # 下载失败的CHECKSUM文件的url列表
-        failed_checksums, success_checksums = main_download(checksum_urls, checksum_directory, proxies)
+        failed_checksums,retryed_checksums, success_checksums = main_download(checksum_urls, checksum_directory, proxies)
 
-        failed_zips = []
         # 初始化用于跟踪每个币种失败次数的字典
+        if len(failed_symbols) > 0:
+            with open(failed_symbols_log, 'a') as f:
+                for i in failed_symbols:
+                    f.write(f'{i}\n')
+        if len(retryed_symbols) > 0:
+            with open(retryed_symbols_log, 'a') as f:
+                for i in retryed_symbols:
+                    f.write(f'{i}\n')
+
 
         for url in success_symbol_urls:
             filename = url.split('/')[-1]
@@ -343,11 +356,6 @@ if __name__ == '__main__':
             if attempts > 1:  # 等于1时，代表经过一次校验即通过
                 with open(Verify_times_log, 'a') as f:  # 使用追加模式'a'
                     f.write(f"{symbol}: {filename}, 校验重试次数: {attempts - 1}\n")
-
-        if failed_symbol_urls:
-            with open(failed_symbols_log, 'a') as f:
-                for url in failed_symbol_urls:
-                    f.write(url)
 
         matching_files = list(Path(下载文件夹).glob(f"*{symbol}*.zip"))
         num_matching_files = len(matching_files)
