@@ -339,17 +339,15 @@ if __name__ == '__main__':
                         download_url(url + '.CHECKSUM', checksum_directory, proxies)
 
                 attempts += 1
-            # 检验结束，记录重试次数大于1的情况
-            if attempts > 1:
+            # 校验结束，记录重试次数大于1的情况
+            if attempts > 1:  # 等于1时，代表经过一次校验即通过
                 with open(Verify_times_log, 'a') as f:  # 使用追加模式'a'
-                    f.write(f"{symbol}: {filename}, 检验重试次数: {attempts-1}\n")
-
+                    f.write(f"{symbol}: {filename}, 校验重试次数: {attempts - 1}\n")
 
         if failed_symbol_urls:
             with open(failed_symbols_log, 'a') as f:
                 for url in failed_symbol_urls:
                     f.write(url)
-
 
         matching_files = list(Path(下载文件夹).glob(f"*{symbol}*.zip"))
         num_matching_files = len(matching_files)
