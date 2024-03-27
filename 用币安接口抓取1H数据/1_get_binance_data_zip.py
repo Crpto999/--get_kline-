@@ -11,6 +11,7 @@ from config import *
 import random
 from pathlib import Path
 
+
 def extract_coin_names(folder_path):
     zip_files = glob(os.path.join(folder_path, '*.zip'))
     coin_names = set()  # 使用集合来避免重复的币种名称
@@ -119,17 +120,17 @@ def download_url(url, directory, proxies):
             with open(file_path, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
-            return True
+            return 0
         except requests.RequestException as e:
             if "Not Found for url" in str(e):  # 检查错误信息是否包含 "Not Found for url"
                 # print(f"{filename.split('.zip')[0]},此时期无K线数据")
-                return 'NotFound'
+                return -1
 
             else:
                 retries += 1
                 # print(f"下载 {url} 失败，重试第{retries}次...")
     # 如果所有尝试都失败，返回False
-    return False
+    return retries
 
 
 # 主下载逻辑
@@ -141,9 +142,9 @@ def main_download(urls, directory, proxies):
         for future in concurrent.futures.as_completed(future_to_url):
             url = future_to_url[future]
             result = future.result()
-            if result is False:
-                error_urls.append(url)
-            if result is True:
+            if result > 0:
+                error_urls.append(f'{url},下载失败次数: {result}')
+            if result == 0:
                 success_urls.append(url)
     return error_urls, success_urls
 
@@ -202,7 +203,6 @@ if __name__ == '__main__':
     # 设置增量zip文件下载目录
     download_directory = 下载文件夹
     failed_symbols_log = os.path.join(main_path, f'Download_failed_{target}_symbols.txt')
-    failed_zips_log = os.path.join(main_path, f'Verify_checksum_failed_{target}_symbols.txt')
     Verify_times_log = os.path.join(main_path, f'Verify_checksum_times_{target}_symbols.txt')
     # 为每个币种生成URL
 
@@ -342,21 +342,13 @@ if __name__ == '__main__':
             # 检验结束，记录重试次数大于1的情况
             if attempts > 1:
                 with open(Verify_times_log, 'a') as f:  # 使用追加模式'a'
-                    f.write(f"{symbol}: {filename}, 检验重试次数: {attempts}\n")
+                    f.write(f"{symbol}: {filename}, 检验重试次数: {attempts-1}\n")
 
-            # 如果尝试结束后还不通过，添加到失败列表
-            if not valid:
-                failed_zips.append(filename)
 
         if failed_symbol_urls:
             with open(failed_symbols_log, 'a') as f:
                 for url in failed_symbol_urls:
-                    f.write(f"{symbol}下载最终失败: {url}\n")
-
-        if failed_zips:
-            with open(failed_zips_log, 'a') as f:
-                for filename in failed_zips:
-                    f.write(f"{symbol}检验最终失败: {filename}\n")
+                    f.write(url)
 
 
         matching_files = list(Path(下载文件夹).glob(f"*{symbol}*.zip"))
