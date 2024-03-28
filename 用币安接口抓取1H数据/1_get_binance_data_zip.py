@@ -236,15 +236,15 @@ if __name__ == '__main__':
     symbols = [symbol for symbol in symbols if not any(keyword in symbol for keyword in ['UP', 'DOWN', 'BEAR', 'BULL'])]
     print('去除杠杆代币后的币种个数:', len(symbols))
     symbols.sort()
-    if debug_mod:
+    if debug_mode:
         symbols = symbols[:5]  # 调试语句
 
     # ===指定下载列表的中断点，用于意外中断后的续传
     coins_already_download = extract_coin_names(download_directory)
 
-    if len(coins_already_download) > 0:
+    if len(coins_already_download) > 1:
         index_acausdt = symbols.index(coins_already_download[-1])
-        symbols = symbols[index_acausdt:]
+        symbols = symbols[index_acausdt-1:]
 
     print('币种总个数:', len(symbols))
 
