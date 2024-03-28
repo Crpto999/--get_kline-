@@ -17,8 +17,8 @@ pd.set_option('expand_frame_repr', False)  # 当列太多时不换行
 # 通过所有zip文件的文件名前缀获取币种名称列表
 def extract_coin_names(folder_path):
     zip_files = glob(os.path.join(folder_path, '*.zip'))
-    print('发现 {} 个zip 文件.'.format(len(zip_files)))
-
+    print(f'发现 {len(zip_files)} 个{mode}zip 文件.')
+    time.sleep(1)
     coin_names = set()  # 使用集合来避免重复的币种名称
     for zip_file in zip_files:
         coin_name = os.path.basename(zip_file).split('-')[0]
@@ -273,10 +273,10 @@ if __name__ == "__main__":
         target = sys.argv[1]
     if target == "spot":
         download_directory = 现货临时下载文件夹
-        mode = "现货数据"
+        mode = "现货"
     elif target == "swap":
         download_directory = 永续合约临时下载文件夹
-        mode = "合约数据"
+        mode = "合约"
 
     coins_to_clean = extract_coin_names(download_directory)
     merge_csvs = all_merge_csv(download_directory)
@@ -286,25 +286,24 @@ if __name__ == "__main__":
         index_next_clean = coins_to_clean.index(merge_csvs[-2])
         coins_to_clean = coins_to_clean[index_next_clean:]
 
-
-    with tqdm(total=len(coins_to_clean), desc="总体进度", unit="step") as pbar:
+    with tqdm(total=len(coins_to_clean), desc="总体进度", unit=mode) as pbar:
         for coin_name in coins_to_clean:
+            coin= coin_name.replace("USDT", "-USDT")
             # 步骤1: 解压
             zip_files = glob(os.path.join(download_directory, f'{coin_name}*.zip'))
             file_num = len(zip_files)
-            pbar.set_description(f"📦 正在解压{file_num}个{coin_name}的zip文件")
+            pbar.set_description(f"📦 正在解压{file_num}个{coin}的zip文件")
             unzip_and_delete_zip(zip_files, download_directory)  # 解压指定币种的zip文件并删除
 
             # 步骤2: 清洗合并
-            pbar.set_description(f"🚿 正在清洗合并{coin_name}的{file_num}个K线数据csv文件")
+            pbar.set_description(f"🚿 正在清洗合并{file_num}个{coin}的csv文件")
             get_merge_csv_files(download_directory)
 
             # 步骤3: 删除这个币种的一分钟CSV,完成处理
             delete_unmerged_csv_files(download_directory)
             pbar.update(1)
-            pbar.set_description(f"💛 {file_num}个{coin_name}{mode}️清洗完成，已合并保存")
+            pbar.set_description(f"💛 {file_num}个{coin} 的{mode}csv️清洗完成，已合并保存")
             print('')
             time.sleep(1)
     pbar.close()
-    print("\n所有币种清洗完成")
 

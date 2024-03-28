@@ -27,8 +27,6 @@ for mode in 要下载的数据类型:
     for script in scripts:
         subprocess.run(['python', script[0], mode])
 
-        print(f'{script[0]} 运行完成')
-    print(f'{mode} 数据全部下载完成')
 
 # 可以在脚本运行结束后删除临时下载文件夹
 temp_folder = os.path.dirname(现货临时下载文件夹)

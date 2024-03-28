@@ -196,18 +196,18 @@ if __name__ == '__main__':
     # 检查是否有足够的命令行参数
     if len(sys.argv) > 1:
         target = sys.argv[1]
-        print(f"正在下载 {target}的K线数据")
+
     # 你可以在这里根据target的值进行相应的操作
     if target == "spot":
         download_directory = 现货临时下载文件夹
         data_directory = 现货K线存放路径
         base_url = 'https://data.binance.vision/data/' + target
-        mode = "现货数据"
+        mode = "现货"
     if target == "swap":
         download_directory = 永续合约临时下载文件夹
         data_directory = 永续合约K线存放路径
         base_url = 'https://data.binance.vision/data/futures/um'
-        mode = "合约数据"
+        mode = "合约"
     checksum_directory = os.path.join(download_directory, 'checksums')
     os.makedirs(checksum_directory, exist_ok=True)
     # 设置增量zip文件下载目录
@@ -215,8 +215,8 @@ if __name__ == '__main__':
     retryed_symbols_log = os.path.join(main_path,  f'{mode}_Download_retryed_log.txt')
     Verify_times_log = os.path.join(main_path,  f'{mode}_Verify_checksum_times_log.txt')
     # 为每个币种生成URL
-
-    print(f'下载API接口为:{base_url}')
+    print(f"即将下载 {mode}K线数据")
+    print(f'使用的下载接口为:{base_url}')
     symbols = get_all_symbols(proxies, target)  # 下载全部币种,包括现在已经下架的
     # 读取CSV文件，获取最新的candle_begin_time日期
     csv_path = os.path.join(data_directory, 'BTC-USDT.csv')
@@ -232,9 +232,9 @@ if __name__ == '__main__':
     if len(symbols) < 1:
         exit()
 
-    print(f'币安全部{target}USDT交易对币种个数:', len(symbols))
+    print(f'币安全部{mode}USDT交易对币种个数:', len(symbols))
     symbols = [symbol for symbol in symbols if not any(keyword in symbol for keyword in ['UP', 'DOWN', 'BEAR', 'BULL'])]
-    print('去除杠杆代币后的币种个数:', len(symbols))
+    print(f'去除杠杆代币后的{mode}币种个数:', len(symbols))
     symbols.sort()
     if debug_mode:
         symbols = symbols[:5]  # 调试语句
@@ -242,11 +242,11 @@ if __name__ == '__main__':
     # ===指定下载列表的中断点，用于意外中断后的续传
     coins_already_download = extract_coin_names(download_directory)
 
-    if len(coins_already_download) > 1:
-        index_acausdt = symbols.index(coins_already_download[-1])
-        symbols = symbols[index_acausdt-1:]
+    if len(coins_already_download) > 0:
+        index_next = symbols.index(coins_already_download[-1])
+        symbols = symbols[index_next:]
 
-    print('币种总个数:', len(symbols))
+    print(f'即将下载的{mode}币种总个数:', len(symbols))
 
     merges = all_merge_csv(download_directory)
     if merges:
@@ -260,10 +260,10 @@ if __name__ == '__main__':
     # 计算日期范围
     start_date = latest_date - timedelta(days=2)
 
-    print('下载K线数据的日期起点:', start_date)
+    print(f'下载{mode}K线数据的日期起点:', start_date)
     date_range = [start_date + timedelta(days=i) for i in range((current_date - start_date).days)]
 
-    print('下载K线数据的日期终点:', date_range[-1])
+    print(f'下载{mode}K线数据的日期终点:', date_range[-1])
 
     # 计算上一个月的年份和月份
     current_year, current_month = datetime.now().year, datetime.now().month
@@ -289,7 +289,7 @@ if __name__ == '__main__':
     monthly_download = sorted(monthly_download, key=lambda x: (x[0], x[1]))
     daily_download.sort()
 
-    pbar = tqdm(symbols, desc="📈 初始化下载数据", unit=f"{mode}")
+    pbar = tqdm(symbols, desc=f"📈 开始下载{symbols[0]}...", unit=f"{mode}")
     for symbol in pbar:
         urls = []
         checksum_urls = []
@@ -342,7 +342,7 @@ if __name__ == '__main__':
 
                     if not valid:
                         # 如果校验失败，记录该币种的失败次数
-                        symbol = filename.split('_')[0]  # 假设文件名以币种开始
+                        symbol = filename.split('_')[0]
 
                         # 删除原有文件，以便重新下载
                         os.remove(zip_file_path)
@@ -362,7 +362,8 @@ if __name__ == '__main__':
         num_matching_files = len(matching_files)
         emoji_options = ["✅", "🎉", "🌟", "🚀", "💡", "🔥", "🌈", "💎", "😎", "🌸", ]
         random_emoji = random.choice(emoji_options)
-        pbar.set_description(f"{random_emoji}{symbol} 成功下载并通过校验,包含{num_matching_files}个.zip文件")
+        coin_name = symbol.replace("USDT", "-USDT")
+        pbar.set_description(f"{random_emoji}{coin_name} 成功下载并通过校验,包含{num_matching_files}个.zip文件")
 
     pbar.close()
-    print("\n所有币种的zip文件下载完成")
+
