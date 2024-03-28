@@ -61,7 +61,7 @@ with tqdm(total=len(csv_files), desc="总体进度", unit="个") as pbar:
         with open(orginal_csv, 'w', encoding='gbk', newline='') as file:
             file.write(special_string + '\n')
             concatenated_df.to_csv(file, index=False)
-            pbar.set_description(f"{coin_name} {mode}数据 已更新至最新日期")
+            pbar.set_description(f"🆕 {coin_name} {mode}数据 已更新至最新日期")
             pbar.update(1)
     pbar.close()
 print(f"所有 {mode}数据 已更新至最新")

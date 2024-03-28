@@ -296,13 +296,13 @@ if __name__ == "__main__":
             unzip_and_delete_zip(zip_files, download_directory)  # 解压指定币种的zip文件并删除
 
             # 步骤2: 清洗合并
-            pbar.set_description(f"🔄 正在清洗合并{coin_name}的{file_num}个K线数据csv文件")
+            pbar.set_description(f"🚿 正在清洗合并{coin_name}的{file_num}个K线数据csv文件")
             get_merge_csv_files(download_directory)
 
             # 步骤3: 删除这个币种的一分钟CSV,完成处理
             delete_unmerged_csv_files(download_directory)
             pbar.update(1)
-            pbar.set_description(f"💯 {file_num}个{coin_name}{mode}️清洗完成，已合并保存")
+            pbar.set_description(f"💛 {file_num}个{coin_name}{mode}️清洗完成，已合并保存")
             print('')
             time.sleep(1)
     pbar.close()
