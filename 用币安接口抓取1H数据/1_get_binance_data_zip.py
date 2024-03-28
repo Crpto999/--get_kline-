@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import concurrent.futures
 import hashlib
-import os
 import sys
 from datetime import datetime, timedelta
 from glob import glob
@@ -137,8 +136,8 @@ def download_url(url, directory, proxies):
 def main_download(urls, directory, proxies):
     error_urls = []
     success_urls = []
-    retryed_urls =[]
-    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
+    retryed_urls = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=下载线程数) as executor:
         future_to_url = {executor.submit(download_url, url, directory, proxies): url for url in urls}
         for future in concurrent.futures.as_completed(future_to_url):
             url = future_to_url[future]
@@ -151,7 +150,7 @@ def main_download(urls, directory, proxies):
                 success_urls.append(url)
             elif result == 0:
                 success_urls.append(url)
-    return error_urls, retryed_urls,success_urls
+    return error_urls, retryed_urls, success_urls
 
 
 def verify_checksum(zip_file_path, checksum_file_path):
@@ -200,16 +199,21 @@ if __name__ == '__main__':
         print(f"正在下载 {target}的K线数据")
     # 你可以在这里根据target的值进行相应的操作
     if target == "spot":
+        download_directory = 现货临时下载文件夹
         data_directory = 现货K线存放路径
         base_url = 'https://data.binance.vision/data/' + target
+        mode = "现货数据"
     if target == "swap":
+        download_directory = 永续合约临时下载文件夹
         data_directory = 永续合约K线存放路径
         base_url = 'https://data.binance.vision/data/futures/um'
+        mode = "合约数据"
+    checksum_directory = os.path.join(download_directory, 'checksums')
+    os.makedirs(checksum_directory, exist_ok=True)
     # 设置增量zip文件下载目录
-    download_directory = 下载文件夹
-    failed_symbols_log = os.path.join(main_path, f'Download_failed_{target}_symbols.txt')
-    retryed_symbols_log = os.path.join(main_path, f'Download_retryed_{target}_symbols.txt')
-    Verify_times_log = os.path.join(main_path, f'Verify_checksum_times_{target}_symbols.txt')
+    failed_symbols_log = os.path.join(main_path,  f'{mode}_Download_failed_log.txt')
+    retryed_symbols_log = os.path.join(main_path,  f'{mode}_Download_retryed_log.txt')
+    Verify_times_log = os.path.join(main_path,  f'{mode}_Verify_checksum_times_log.txt')
     # 为每个币种生成URL
 
     print(f'下载API接口为:{base_url}')
@@ -232,8 +236,11 @@ if __name__ == '__main__':
     symbols = [symbol for symbol in symbols if not any(keyword in symbol for keyword in ['UP', 'DOWN', 'BEAR', 'BULL'])]
     print('去除杠杆代币后的币种个数:', len(symbols))
     symbols.sort()
+    if debug_mod:
+        symbols = symbols[:5]  # 调试语句
+
     # ===指定下载列表的中断点，用于意外中断后的续传
-    coins_already_download = extract_coin_names(下载文件夹)
+    coins_already_download = extract_coin_names(download_directory)
 
     if len(coins_already_download) > 0:
         index_acausdt = symbols.index(coins_already_download[-1])
@@ -241,7 +248,7 @@ if __name__ == '__main__':
 
     print('币种总个数:', len(symbols))
 
-    merges = all_merge_csv(下载文件夹)
+    merges = all_merge_csv(download_directory)
     if merges:
         symbols = sorted(list(set(symbols) - set(merges)))
         print('需要补充下载的币种:', symbols)
@@ -257,11 +264,6 @@ if __name__ == '__main__':
     date_range = [start_date + timedelta(days=i) for i in range((current_date - start_date).days)]
 
     print('下载K线数据的日期终点:', date_range[-1])
-
-    # 创建下载目录
-    os.makedirs(download_directory, exist_ok=True)
-    checksum_directory = os.path.join(download_directory, 'checksums')
-    os.makedirs(checksum_directory, exist_ok=True)
 
     # 计算上一个月的年份和月份
     current_year, current_month = datetime.now().year, datetime.now().month
@@ -287,7 +289,6 @@ if __name__ == '__main__':
     monthly_download = sorted(monthly_download, key=lambda x: (x[0], x[1]))
     daily_download.sort()
 
-    mode = "现货数据" if target == "spot" else "合约数据"
     pbar = tqdm(symbols, desc="📈 初始化下载数据", unit=f"{mode}")
     for symbol in pbar:
         urls = []
@@ -312,9 +313,9 @@ if __name__ == '__main__':
         checksum_urls.sort()
 
         # 下载失败的url列表
-        failed_symbols,retryed_symbols, success_symbol_urls = main_download(urls, download_directory, proxies)
+        failed_symbols, retryed_symbols, success_symbol_urls = main_download(urls, download_directory, proxies)
         # 下载失败的CHECKSUM文件的url列表
-        failed_checksums,retryed_checksums, success_checksums = main_download(checksum_urls, checksum_directory, proxies)
+        failed_checksums, retryed_checksums, success_checksums = main_download(checksum_urls, checksum_directory, proxies)
 
         # 初始化用于跟踪每个币种失败次数的字典
         if len(failed_symbols) > 0:
@@ -325,7 +326,6 @@ if __name__ == '__main__':
             with open(retryed_symbols_log, 'a') as f:
                 for i in retryed_symbols:
                     f.write(f'{i}\n')
-
 
         for url in success_symbol_urls:
             filename = url.split('/')[-1]
@@ -358,7 +358,7 @@ if __name__ == '__main__':
                 with open(Verify_times_log, 'a') as f:  # 使用追加模式'a'
                     f.write(f"{symbol}: {filename}, 校验重试次数: {attempts - 1}\n")
 
-        matching_files = list(Path(下载文件夹).glob(f"*{symbol}*.zip"))
+        matching_files = list(Path(download_directory).glob(f"*{symbol}*.zip"))
         num_matching_files = len(matching_files)
         emoji_options = ["✅", "🎉", "🌟", "🚀", "💡", "🔥", "🌈", "💎", "😎", "🌸", ]
         random_emoji = random.choice(emoji_options)

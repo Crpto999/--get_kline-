@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-import os
-import shutil
 import sys
 import time
 import zipfile
@@ -268,34 +266,41 @@ def delete_unmerged_csv_files(folder_path):
 
 
 if __name__ == "__main__":
+    # 默认值
     target = 'spot'
     # 检查是否有足够的命令行参数
     if len(sys.argv) > 1:
         target = sys.argv[1]
+    if target == "spot":
+        download_directory = 现货临时下载文件夹
+        mode = "现货数据"
+    elif target == "swap":
+        download_directory = 永续合约临时下载文件夹
+        mode = "合约数据"
 
-    coins_to_clean = extract_coin_names(下载文件夹)
-    merge_csvs = all_merge_csv(下载文件夹)
+    coins_to_clean = extract_coin_names(download_directory)
+    merge_csvs = all_merge_csv(download_directory)
 
     # 如果任务中断，识别断点，继续清理
     if len(merge_csvs) >= 2:
         index_next_clean = coins_to_clean.index(merge_csvs[-2])
         coins_to_clean = coins_to_clean[index_next_clean:]
 
-    mode = "现货数据" if target == "spot" else "合约数据"
+
     with tqdm(total=len(coins_to_clean), desc="总体进度", unit="step") as pbar:
         for coin_name in coins_to_clean:
             # 步骤1: 解压
-            zip_files = glob(os.path.join(下载文件夹, f'{coin_name}*.zip'))
+            zip_files = glob(os.path.join(download_directory, f'{coin_name}*.zip'))
             file_num = len(zip_files)
             pbar.set_description(f"📦 正在解压{file_num}个{coin_name}的zip文件")
-            unzip_and_delete_zip(zip_files, 下载文件夹)  # 解压指定币种的zip文件并删除
+            unzip_and_delete_zip(zip_files, download_directory)  # 解压指定币种的zip文件并删除
 
             # 步骤2: 清洗合并
             pbar.set_description(f"🔄 正在清洗合并{coin_name}的{file_num}个K线数据csv文件")
-            get_merge_csv_files(下载文件夹)
+            get_merge_csv_files(download_directory)
 
             # 步骤3: 删除这个币种的一分钟CSV,完成处理
-            delete_unmerged_csv_files(下载文件夹)
+            delete_unmerged_csv_files(download_directory)
             pbar.update(1)
             pbar.set_description(f"💯 {file_num}个{coin_name}{mode}️清洗完成，已合并保存")
             print('')
