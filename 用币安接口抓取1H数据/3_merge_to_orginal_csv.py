@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import shutil
 import sys
@@ -22,7 +23,8 @@ if target == "swap":
     mode = '合约'
 new_csv_path = 下载文件夹
 
-csv_files = glob(os.path.join(new_csv_path, '*.csv'))
+csv_files = glob(os.path.join(new_csv_path, f"*{'_merge'}*.csv"))
+
 
 for new_csv in csv_files:
     coin_name = os.path.basename(new_csv).split('_')[0]
@@ -59,7 +61,8 @@ for new_csv in csv_files:
     with open(orginal_csv, 'w', encoding='gbk', newline='') as file:
         file.write(special_string + '\n')
         concatenated_df.to_csv(file, index=False)
-        print(f"{coin_name} {mode}数据 已更新至最新")
+        print(f"{coin_name} {mode}数据 已更新至最新日期")
 print(f"所有 {mode}数据 已更新至最新")
-shutil.rmtree(new_csv_path)
-print(f"下载临时文件夹 {new_csv_path} 已被删除")
+if len(csv_files) > 0:
+    shutil.rmtree(new_csv_path)
+    print(f"下载临时文件夹 {new_csv_path} 已被删除")

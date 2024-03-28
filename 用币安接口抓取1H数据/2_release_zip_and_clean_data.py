@@ -1,6 +1,8 @@
+# -*- coding: utf-8 -*-
 import os
 import shutil
 import sys
+import time
 import zipfile
 from glob import glob
 from itertools import product
@@ -8,7 +10,6 @@ from pathlib import Path
 import pandas as pd
 from joblib import Parallel, delayed
 from tqdm import tqdm
-
 from config import *
 
 pd.set_option('display.max_rows', 1000)
@@ -35,22 +36,24 @@ def all_merge_csv(folder_path):
 
     # 统计已存在多少个 _merge 的文件
     existing_merge_files_count = len(matching_files)
-    if existing_merge_files_count > 0:
+    if existing_merge_files_count > 2:
         print(f"检查到上次有任务中断。上次已完成 {existing_merge_files_count} 个币种的清洗任务，开始续洗.")
 
-    for merge_file in matching_files:
-        coin_name = os.path.basename(merge_file).split('_')[0]
-        merge_files.add(coin_name)
+        for merge_file in matching_files:
+            coin_name = os.path.basename(merge_file).split('_')[0]
+            merge_files.add(coin_name)
 
-    merge_files_list = list(merge_files)
-    merge_files_list.sort()
+        merge_files_list = list(merge_files)
+        merge_files_list.sort()
 
-    # 删除除了带有 _merge 后缀的文件之外的其他 CSV 文件
-    for file in Path(folder_path).glob("*.csv"):
-        if "_merge" not in file.name:
-            file.unlink()
+        # 删除除了带有 _merge 后缀的文件之外的其他 CSV 文件
+        for file in Path(folder_path).glob("*.csv"):
+            if "_merge" not in file.name:
+                file.unlink()
 
-    return merge_files_list
+        return merge_files_list
+    else:
+        return []
 
 
 # 解压并删除zip文件
@@ -274,28 +277,29 @@ if __name__ == "__main__":
     merge_csvs = all_merge_csv(下载文件夹)
 
     # 如果任务中断，识别断点，继续清理
-    # index_next_clean = coins_to_clean.index(merge_csvs[-2])
-    # coins_to_clean = coins_to_clean[index_next_clean:]
+    if len(merge_csvs) >= 2:
+        index_next_clean = coins_to_clean.index(merge_csvs[-2])
+        coins_to_clean = coins_to_clean[index_next_clean:]
 
     mode = "现货数据" if target == "spot" else "合约数据"
+    with tqdm(total=len(coins_to_clean), desc="总体进度", unit="step") as pbar:
+        for coin_name in coins_to_clean:
+            # 步骤1: 解压
+            zip_files = glob(os.path.join(下载文件夹, f'{coin_name}*.zip'))
+            file_num = len(zip_files)
+            pbar.set_description(f"📦 正在解压{file_num}个{coin_name}的zip文件")
+            unzip_and_delete_zip(zip_files, 下载文件夹)  # 解压指定币种的zip文件并删除
 
-    pbar = tqdm(coins_to_clean, total=len(coins_to_clean), desc="🚀初始化清洗", unit=f"{mode}")
-    for coin_name in pbar:
-        zip_files = glob(os.path.join(下载文件夹, f'{coin_name}*.zip'))
-        file_num = len(zip_files)
-        pbar.set_description(f"📦 正在解压{file_num}个{coin_name}的zip文件")
+            # 步骤2: 清洗合并
+            pbar.set_description(f"🔄 正在清洗合并{coin_name}的{file_num}个K线数据csv文件")
+            get_merge_csv_files(下载文件夹)
 
-        unzip_and_delete_zip(zip_files, 下载文件夹)  # 解压指定币种的zip文件并删除
+            # 步骤3: 删除这个币种的一分钟CSV,完成处理
+            delete_unmerged_csv_files(下载文件夹)
+            pbar.update(1)
+            pbar.set_description(f"💯 {file_num}个{coin_name}{mode}️清洗完成，已合并保存")
+            print('')
+            time.sleep(1)
+    pbar.close()
+    print("\n所有币种清洗完成")
 
-        pbar.set_description(f"🔄 正在清洗合并{coin_name}的{file_num}个K线数据csv文件")
-        get_merge_csv_files(下载文件夹)  # 合并指定币种的CSV文件并保存
-        pbar.set_description(f"💯 {file_num}个{coin_name}{mode}️清洗完成，已合并保存")
-        print("")
-        delete_unmerged_csv_files(下载文件夹)  # 删除未合并的CSV文件
-
-    checksums_files = os.path.join(下载文件夹, 'checksums')
-    if os.path.exists(checksums_files):
-        shutil.rmtree(checksums_files)
-    zip_files = glob(os.path.join(下载文件夹, '*.zip'))
-    for zip_file in zip_files:
-        os.remove(zip_file)
