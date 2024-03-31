@@ -8,7 +8,7 @@ import shutil
 官方接口github：https://github.com/binance/binance-public-data
 数据来源：https://data.binance.vision
 '''
-要下载的数据类型 = ['swap', 'spot']  # 'swap',#'spot'
+要下载的数据类型 = ['swap','spot']  # 'swap',#'spot'
 
 scripts = [
     ('1_get_binance_data_zip.py', True),  # 需要模式参数
