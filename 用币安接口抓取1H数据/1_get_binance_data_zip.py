@@ -260,9 +260,9 @@ if __name__ == '__main__':
     # 计算日期范围
     start_date = latest_date - timedelta(days=2)
 
-    print(f'下载{mode}K线数据的日期起点:', start_date)
-    date_range = [start_date + timedelta(days=i) for i in range((current_date - start_date).days)]
 
+    date_range = [start_date + timedelta(days=i) for i in range((current_date - start_date).days + 1 )]
+    print(f'下载{mode}K线数据的日期起点:', start_date)
     print(f'下载{mode}K线数据的日期终点:', date_range[-1])
 
     # 计算上一个月的年份和月份
