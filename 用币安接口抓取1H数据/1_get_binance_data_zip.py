@@ -219,7 +219,7 @@ if __name__ == '__main__':
     print(f'使用的下载接口为:{base_url}')
     symbols = get_all_symbols(proxies, target)  # 下载全部币种,包括现在已经下架的
     # 读取CSV文件，获取最新的candle_begin_time日期
-    csv_path = os.path.join(data_directory, 'BTC-USDT.csv')
+    csv_path = os.path.join(data_directory, 'ZEN-USDT.csv')
     if os.path.exists(csv_path):
         df = pd.read_csv(csv_path, skiprows=1, encoding='GBK')
         latest_date_str = df['candle_begin_time'].max()
